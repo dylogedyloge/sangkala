@@ -6,12 +6,19 @@ import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 
 const signupSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -20,7 +27,6 @@ const signupSchema = z.object({
 
 export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
   const router = useRouter()
   const register = useAuthStore((state) => state.register)
   const login = useAuthStore((state) => state.login)
@@ -36,10 +42,8 @@ export function SignupForm() {
   })
 
   async function onSubmit(values: z.infer<typeof signupSchema>) {
-    setError("")
     setIsLoading(true)
     try {
-      // Simulate API latency
       await new Promise((resolve) => setTimeout(resolve, 1000))
       
       const success = register({
@@ -49,11 +53,13 @@ export function SignupForm() {
       })
 
       if (success) {
-        // Auto login after registration
         login(values.email, values.password)
         router.push("/ads")
       } else {
-        setError("Email already exists")
+        form.setError("email", { 
+          type: "manual", 
+          message: "Email already exists" 
+        })
       }
     } finally {
       setIsLoading(false)
@@ -61,54 +67,72 @@ export function SignupForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      {error && (
-        <div className="text-sm text-red-500 text-center">
-          {error}
-        </div>
-      )}
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          {...form.register("name")}
-          id="name"
-          placeholder="Enter your name"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter your name" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          {...form.register("email")}
-          id="email"
-          type="email"
-          placeholder="Enter your email"
+
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="Enter your email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          {...form.register("password")}
-          id="password"
-          type="password"
-          placeholder="Enter your password"
+
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Enter your password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <Input
-          {...form.register("confirmPassword")}
-          id="confirmPassword"
-          type="password"
-          placeholder="Confirm your password"
+
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirm Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Confirm your password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isLoading}
-      >
-        {isLoading ? "Loading..." : "Sign Up"}
-      </Button>
-    </form>
+
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? "Loading..." : "Sign Up"}
+        </Button>
+      </form>
+    </Form>
   )
 }

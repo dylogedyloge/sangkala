@@ -7,16 +7,22 @@ import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 })
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
   const router = useRouter()
   const login = useAuthStore((state) => state.login)
 
@@ -29,10 +35,8 @@ export function LoginForm() {
   })
 
   async function onSubmit(values: z.infer<typeof loginSchema>) {
-    setError("")
     setIsLoading(true)
     try {
-      // Simulate API latency
       await new Promise((resolve) => setTimeout(resolve, 1000))
       
       const success = login(values.email, values.password)
@@ -40,7 +44,10 @@ export function LoginForm() {
       if (success) {
         router.push("/ads")
       } else {
-        setError("Invalid email or password")
+        form.setError("root", { 
+          type: "manual", 
+          message: "Invalid email or password" 
+        })
       }
     } finally {
       setIsLoading(false)
@@ -48,37 +55,50 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      {error && (
-        <div className="text-sm text-red-500 text-center">
-          {error}
-        </div>
-      )}
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          {...form.register("email")}
-          id="email"
-          type="email"
-          placeholder="Enter your email"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {form.formState.errors.root && (
+          <div className="text-sm text-red-500 text-center">
+            {form.formState.errors.root.message}
+          </div>
+        )}
+        
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="Enter your email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          {...form.register("password")}
-          id="password"
-          type="password"
-          placeholder="Enter your password"
+
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Enter your password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isLoading}
-      >
-        {isLoading ? "Loading..." : "Login"}
-      </Button>
-    </form>
+
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? "Loading..." : "Login"}
+        </Button>
+      </form>
+    </Form>
   )
 }

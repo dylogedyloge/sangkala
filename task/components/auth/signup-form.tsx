@@ -20,7 +20,9 @@ const signupSchema = z.object({
 
 export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const router = useRouter()
+  const register = useAuthStore((state) => state.register)
   const login = useAuthStore((state) => state.login)
 
   const form = useForm<z.infer<typeof signupSchema>>({
@@ -34,15 +36,25 @@ export function SignupForm() {
   })
 
   async function onSubmit(values: z.infer<typeof signupSchema>) {
+    setError("")
     setIsLoading(true)
     try {
+      // Simulate API latency
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      login({
-        id: "1",
+      
+      const success = register({
         email: values.email,
+        password: values.password,
         name: values.name,
       })
-      router.push("/dashboard")
+
+      if (success) {
+        // Auto login after registration
+        login(values.email, values.password)
+        router.push("/ads")
+      } else {
+        setError("Email already exists")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -50,6 +62,11 @@ export function SignupForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {error && (
+        <div className="text-sm text-red-500 text-center">
+          {error}
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input

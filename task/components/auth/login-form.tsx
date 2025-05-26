@@ -16,6 +16,7 @@ const loginSchema = z.object({
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const router = useRouter()
   const login = useAuthStore((state) => state.login)
 
@@ -28,15 +29,19 @@ export function LoginForm() {
   })
 
   async function onSubmit(values: z.infer<typeof loginSchema>) {
+    setError("")
     setIsLoading(true)
     try {
+      // Simulate API latency
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      login({
-        id: "1",
-        email: values.email,
-        name: "John Doe",
-      })
-      router.push("/dashboard")
+      
+      const success = login(values.email, values.password)
+      
+      if (success) {
+        router.push("/ads")
+      } else {
+        setError("Invalid email or password")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -44,6 +49,11 @@ export function LoginForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {error && (
+        <div className="text-sm text-red-500 text-center">
+          {error}
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

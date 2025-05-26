@@ -5,21 +5,51 @@ interface User {
   id: string
   email: string
   name: string
+  password: string // Add password for authentication
 }
 
 interface AuthState {
   user: User | null
   isAuthenticated: boolean
-  login: (user: User) => void
+  users: User[] // Add users array to store registered users
+  login: (email: string, password: string) => boolean
+  register: (user: Omit<User, "id">) => boolean
   logout: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
+      users: [],
       isAuthenticated: false,
-      login: (user) => set({ user, isAuthenticated: true }),
+      register: (userData) => {
+        const users = get().users
+        const exists = users.some(user => user.email === userData.email)
+        
+        if (exists) return false
+
+        const newUser = {
+          ...userData,
+          id: Math.random().toString(36).slice(2),
+        }
+
+        set(state => ({
+          users: [...state.users, newUser]
+        }))
+        return true
+      },
+      login: (email, password) => {
+        const user = get().users.find(
+          u => u.email === email && u.password === password
+        )
+        
+        if (user) {
+          set({ user, isAuthenticated: true })
+          return true
+        }
+        return false
+      },
       logout: () => set({ user: null, isAuthenticated: false }),
     }),
     {

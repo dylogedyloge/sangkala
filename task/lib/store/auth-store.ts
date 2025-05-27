@@ -1,21 +1,6 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-
-interface User {
-  id: string
-  email: string
-  name: string
-  password: string // Add password for authentication
-}
-
-interface AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  users: User[] // Add users array to store registered users
-  login: (email: string, password: string) => boolean
-  register: (user: Omit<User, "id">) => boolean
-  logout: () => void
-}
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { AuthState } from "@/types/auth";
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -24,36 +9,36 @@ export const useAuthStore = create<AuthState>()(
       users: [],
       isAuthenticated: false,
       register: (userData) => {
-        const users = get().users
-        const exists = users.some(user => user.email === userData.email)
-        
-        if (exists) return false
+        const users = get().users;
+        const exists = users.some((user) => user.email === userData.email);
+
+        if (exists) return false;
 
         const newUser = {
           ...userData,
           id: Math.random().toString(36).slice(2),
-        }
+        };
 
-        set(state => ({
-          users: [...state.users, newUser]
-        }))
-        return true
+        set((state) => ({
+          users: [...state.users, newUser],
+        }));
+        return true;
       },
       login: (email, password) => {
         const user = get().users.find(
-          u => u.email === email && u.password === password
-        )
-        
+          (u) => u.email === email && u.password === password
+        );
+
         if (user) {
-          set({ user, isAuthenticated: true })
-          return true
+          set({ user, isAuthenticated: true });
+          return true;
         }
-        return false
+        return false;
       },
       logout: () => set({ user: null, isAuthenticated: false }),
     }),
     {
-      name: 'auth-storage',
+      name: "auth-storage",
     }
   )
-)
+);

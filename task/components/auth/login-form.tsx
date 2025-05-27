@@ -15,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/shadcn/form"
-import { Loader2 } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

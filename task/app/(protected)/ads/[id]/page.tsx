@@ -11,6 +11,7 @@ import Link from "next/link"
 import { format } from "date-fns"
 import { Star, ArrowLeft, Box, Truck, Shield } from "lucide-react"
 
+
 export default function AdDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { isAuthenticated } = useAuthStore()

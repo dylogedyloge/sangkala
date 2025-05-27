@@ -1,75 +1,75 @@
 "use client"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { redirect } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-
-interface Ad {
-  id: string
-  title: string
-  description: string
-  price: number
-  location: string
-  postedAt: string
-}
-
-const mockAds: Ad[] = [
-  {
-    id: "1",
-    title: "Modern Apartment in City Center",
-    description: "Beautiful 2-bedroom apartment with modern amenities",
-    price: 1500,
-    location: "Downtown",
-    postedAt: "2024-02-15"
-  },
-  {
-    id: "2",
-    title: "Office Space for Rent",
-    description: "Professional office space with parking",
-    price: 2000,
-    location: "Business District",
-    postedAt: "2024-02-14"
-  },
-  {
-    id: "3",
-    title: "Cozy Studio Apartment",
-    description: "Fully furnished studio with utilities included",
-    price: 800,
-    location: "University Area",
-    postedAt: "2024-02-13"
-  }
-]
+import { Button } from "@/components/shadcn/button"
+import { Card, CardContent, CardHeader } from "@/components/shadcn/card"
+import { useAds } from "@/lib/hooks/useAds"
+import Image from "next/image"
 
 export default function AdsPage() {
   const { isAuthenticated, logout } = useAuthStore()
+  const { data: ads, isLoading, error } = useAds()
 
   if (!isAuthenticated) {
     redirect("/login")
+  }
+
+  if (isLoading) {
+    return <div className="min-h-screen p-8">Loading...</div>
+  }
+
+  if (error) {
+    return <div className="min-h-screen p-8">Error loading ads</div>
   }
 
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Available Ads</h1>
+          <h1 className="text-3xl font-bold">Available Products</h1>
           <Button variant="outline" onClick={logout}>Logout</Button>
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {mockAds.map((ad) => (
+          {ads?.map((ad) => (
             <Card key={ad.id}>
+              <div className="relative w-full h-48">
+                <Image
+                  src={ad.thumbnail}
+                  alt={ad.title}
+                  fill
+                  className="object-cover rounded-t-lg"
+                />
+              </div>
               <CardHeader className="space-y-1">
                 <div className="flex justify-between items-start">
-                  <h2 className="text-xl font-semibold">{ad.title}</h2>
-                  <span className="text-lg font-bold">${ad.price}</span>
+                  <div>
+                    <h2 className="text-xl font-semibold">{ad.title}</h2>
+                    <p className="text-sm text-muted-foreground">{ad.brand}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-bold">${ad.price}</span>
+                    {ad.discountPercentage > 0 && (
+                      <p className="text-sm text-green-600">-{ad.discountPercentage}%</p>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">{ad.location}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm bg-primary/10 text-primary px-2 py-1 rounded">
+                    {ad.category}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    Rating: {ad.rating?.toFixed(1)}
+                  </span>
+                </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm mb-4">{ad.description}</p>
-                <div className="flex justify-between items-center text-sm text-muted-foreground">
-                  <span>Posted on {ad.postedAt}</span>
-                  <Button variant="secondary" size="sm">Contact</Button>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    Stock: {ad.stock}
+                  </span>
+                  <Button variant="secondary" size="sm">View Details</Button>
                 </div>
               </CardContent>
             </Card>

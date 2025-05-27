@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/shadcn/button"
+import { Input } from "@/components/shadcn/input"
 import {
   Form,
   FormControl,
@@ -13,7 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
+} from "@/components/shadcn/form"
 
 const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),

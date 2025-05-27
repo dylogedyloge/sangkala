@@ -5,8 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/shadcn/button"
+import { Input } from "@/components/shadcn/input"
 import {
   Form,
   FormControl,
@@ -14,7 +14,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
+} from "@/components/shadcn/form"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

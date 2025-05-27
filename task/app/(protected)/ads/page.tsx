@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/shadcn/card"
 import { useAds } from "@/lib/hooks/useAds"
 import { ProductCardSkeleton } from "@/components/ads/product-card-skeleton"
 import Image from "next/image"
+import Link from "next/link"
 
 const ITEMS_PER_PAGE = 9
 
@@ -77,7 +78,9 @@ export default function AdsPage() {
                   <span className="text-sm text-muted-foreground">
                     Stock: {ad.stock}
                   </span>
-                  <Button variant="secondary" size="sm">View Details</Button>
+                  <Link href={`/ads/${ad.id}`}>
+                    <Button variant="secondary" className="cursor-pointer" size="sm">View Details</Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

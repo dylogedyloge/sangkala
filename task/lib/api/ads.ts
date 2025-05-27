@@ -1,5 +1,19 @@
 import { api } from './axios'
 
+export interface Review {
+  rating: number
+  comment: string
+  date: string
+  reviewerName: string
+  reviewerEmail: string
+}
+
+export interface Dimensions {
+  width: number
+  height: number
+  depth: number
+}
+
 export interface Ad {
   id: number
   title: string
@@ -11,6 +25,17 @@ export interface Ad {
   rating: number
   stock: number
   discountPercentage: number
+  tags: string[]
+  sku: string
+  weight: number
+  dimensions: Dimensions
+  warrantyInformation: string
+  shippingInformation: string
+  availabilityStatus: string
+  reviews: Review[]
+  returnPolicy: string
+  minimumOrderQuantity: number
+  images: string[]
 }
 
 interface ProductsResponse {

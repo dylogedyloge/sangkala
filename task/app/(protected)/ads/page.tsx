@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { Button } from "@/components/shadcn/button"
 import { Card, CardContent, CardHeader } from "@/components/shadcn/card"
 import { useAds } from "@/lib/hooks/useAds"
+import { ProductCardSkeleton } from "@/components/ads/product-card-skeleton"
 import Image from "next/image"
 
 const ITEMS_PER_PAGE = 9
@@ -16,10 +17,6 @@ export default function AdsPage() {
 
   if (!isAuthenticated) {
     redirect("/login")
-  }
-
-  if (isLoading) {
-    return <div className="min-h-screen p-8">Loading...</div>
   }
 
   if (error) {
@@ -37,7 +34,12 @@ export default function AdsPage() {
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {data?.products.map((ad) => (
+        {isLoading ? (
+            Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))
+          ) :
+          (data?.products.map((ad) => (
             <Card key={ad.id}>
               <div className="relative w-full h-48">
                 <Image
@@ -79,9 +81,10 @@ export default function AdsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          ))
+        )}
         </div>
-
+        {!isLoading && (
         <div className="flex justify-center items-center gap-2 mt-8">
           <Button
             variant="outline"
@@ -110,6 +113,7 @@ export default function AdsPage() {
             Next
           </Button>
         </div>
+        )}
       </div>
     </div>
   )

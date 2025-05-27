@@ -15,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/shadcn/form"
+import { Loader2 } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -96,7 +97,7 @@ export function LoginForm() {
           className="w-full"
           disabled={isLoading}
         >
-          {isLoading ? "Loading..." : "Login"}
+          Sign In
         </Button>
       </form>
     </Form>

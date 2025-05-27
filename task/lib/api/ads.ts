@@ -20,10 +20,17 @@ interface ProductsResponse {
   limit: number
 }
 
+export interface PaginationParams {
+  limit: number;
+  skip: number;
+}
+
 export const adsApi = {
-  getAll: async (): Promise<Ad[]> => {
-    const { data } = await api.get<ProductsResponse>('https://dummyjson.com/products')
-    return data.products
+  getAll: async ({ limit = 9, skip = 0 }: PaginationParams): Promise<ProductsResponse> => {
+    const { data } = await api.get<ProductsResponse>(
+      `https://dummyjson.com/products?limit=${limit}&skip=${skip}`
+    )
+    return data
   },
   
   getById: async (id: string): Promise<Ad> => {

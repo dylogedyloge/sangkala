@@ -1,4 +1,5 @@
 "use client"
+import { useState } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/shadcn/button"
@@ -6,9 +7,12 @@ import { Card, CardContent, CardHeader } from "@/components/shadcn/card"
 import { useAds } from "@/lib/hooks/useAds"
 import Image from "next/image"
 
+const ITEMS_PER_PAGE = 9
+
 export default function AdsPage() {
+  const [currentPage, setCurrentPage] = useState(1)
   const { isAuthenticated, logout } = useAuthStore()
-  const { data: ads, isLoading, error } = useAds()
+  const { data, isLoading, error } = useAds(currentPage, ITEMS_PER_PAGE)
 
   if (!isAuthenticated) {
     redirect("/login")
@@ -22,6 +26,8 @@ export default function AdsPage() {
     return <div className="min-h-screen p-8">Error loading ads</div>
   }
 
+  const totalPages = Math.ceil((data?.total || 0) / ITEMS_PER_PAGE)
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
@@ -31,7 +37,7 @@ export default function AdsPage() {
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {ads?.map((ad) => (
+          {data?.products.map((ad) => (
             <Card key={ad.id}>
               <div className="relative w-full h-48">
                 <Image
@@ -74,6 +80,35 @@ export default function AdsPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        <div className="flex justify-center items-center gap-2 mt-8">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <div className="flex items-center gap-2">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={page}
+                variant={currentPage === page ? "default" : "outline"}
+                onClick={() => setCurrentPage(page)}
+                className="w-10 h-10"
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
         </div>
       </div>
     </div>

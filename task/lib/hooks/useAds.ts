@@ -9,10 +9,10 @@ export const adsKeys = {
   detail: (id: string) => [...adsKeys.details(), id] as const,
 }
 
-export function useAds() {
+export function useAds(page: number = 1, limit: number = 9) {
   return useQuery({
-    queryKey: adsKeys.lists(),
-    queryFn: adsApi.getAll,
+    queryKey: [...adsKeys.lists(), { page, limit }],
+    queryFn: () => adsApi.getAll({ limit, skip: (page - 1) * limit }),
   })
 }
 

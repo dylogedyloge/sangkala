@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, Suspense } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { redirect, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/shadcn/button"
@@ -80,26 +80,60 @@ const getStockBadgeColor = (status: string) => {
   }
 };
 
+interface SearchParamsState {
+  q: string
+  category: string
+  brand: string
+  inStock: boolean
+  sort: SortOrder
+}
+
+// Search params wrapper component
+function SearchParamsWrapper({
+  onInitialize
+}: {
+  onInitialize: (params: SearchParamsState) => void
+}) {
+  const searchParams = useSearchParams()
+  
+  useEffect(() => {
+    onInitialize({
+      q: searchParams.get("q") || "",
+      category: searchParams.get("category") || ALL_CATEGORIES,
+      brand: searchParams.get("brand") || ALL_BRANDS,
+      inStock: searchParams.get("inStock") === "true",
+      sort: (searchParams.get("sort") as SortOrder) || "default"
+    })
+  }, [searchParams, onInitialize])
+
+  return null
+}
+
 export default function AdsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [currentPage, setCurrentPage] = useState(1)
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "")
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || ALL_CATEGORIES)
-  const [selectedBrand, setSelectedBrand] = useState(searchParams.get("brand") || ALL_BRANDS)
-  const [onlyInStock, setOnlyInStock] = useState(searchParams.get("inStock") === "true")
-  const [priceSort, setPriceSort] = useState<SortOrder>(
-    (searchParams.get("sort") as SortOrder) || "default"
-  )
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES)
+  const [selectedBrand, setSelectedBrand] = useState(ALL_BRANDS)
+  const [onlyInStock, setOnlyInStock] = useState(false)
+  const [priceSort, setPriceSort] = useState<SortOrder>("default")
   const [isMobile, setIsMobile] = useState(false)
   const loadingRef = useRef(null)
 
-  const togglePriceSort = () => {
-    setPriceSort(current => {
-      if (current === "default" || current === "highest") return "lowest"
-      return "highest"
-    })
-  }
+  // Initialize state from URL parameters
+  const handleSearchParamsInit = useCallback(({
+    q,
+    category,
+    brand,
+    inStock,
+    sort
+  }: SearchParamsState) => {
+    setSearchQuery(q)
+    setSelectedCategory(category)
+    setSelectedBrand(brand)
+    setOnlyInStock(inStock)
+    setPriceSort(sort)
+  }, [])
 
   const { isAuthenticated, logout } = useAuthStore()
   const { data: brands = [], isLoading: isBrandsLoading } = useBrands()
@@ -116,35 +150,26 @@ export default function AdsPage() {
 
   const totalPages = Math.ceil((data?.total || 0) / ITEMS_PER_PAGE)
 
+  // URL updating effect
   useEffect(() => {
-    const params = new URLSearchParams(searchParams)
+    const params = new URLSearchParams()
     if (searchQuery) {
       params.set("q", searchQuery)
-    } else {
-      params.delete("q")
     }
     if (selectedCategory && selectedCategory !== ALL_CATEGORIES) {
       params.set("category", selectedCategory)
-    } else {
-      params.delete("category")
     }
     if (selectedBrand && selectedBrand !== ALL_BRANDS) {
       params.set("brand", selectedBrand)
-    } else {
-      params.delete("brand")
     }
     if (onlyInStock) {
       params.set("inStock", "true")
-    } else {
-      params.delete("inStock")
     }
     if (priceSort !== "default") {
       params.set("sort", priceSort)
-    } else {
-      params.delete("sort")
     }
     router.replace(`/ads?${params.toString()}`)
-  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort, router, searchParams])
+  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort, router])
 
   // Check if device is mobile
   useEffect(() => {
@@ -458,7 +483,10 @@ export default function AdsPage() {
             </Select>
             <Button
               variant="outline"
-              onClick={togglePriceSort}
+              onClick={() => setPriceSort(current => {
+                if (current === "default" || current === "highest") return "lowest"
+                return "highest"
+              })}
               className="flex items-center gap-2"
             >
               <ArrowUpDown className="h-4 w-4" />

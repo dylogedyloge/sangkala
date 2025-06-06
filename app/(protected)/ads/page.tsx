@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { redirect, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/shadcn/button"
@@ -70,17 +70,67 @@ const getStockBadgeColor = (status: string) => {
   }
 };
 
+// Create a new component for search params logic
+function SearchParamsComponent({ 
+  onSearchChange, 
+  onCategoryChange, 
+  onBrandChange, 
+  onInStockChange, 
+  onSortChange 
+}: { 
+  onSearchChange: (value: string) => void
+  onCategoryChange: (value: string) => void
+  onBrandChange: (value: string) => void
+  onInStockChange: (value: boolean) => void
+  onSortChange: (value: SortOrder) => void
+}) {
+  const searchParams = useSearchParams()
+  
+  useEffect(() => {
+    onSearchChange(searchParams.get("q") || "")
+    onCategoryChange(searchParams.get("category") || ALL_CATEGORIES)
+    onBrandChange(searchParams.get("brand") || ALL_BRANDS)
+    onInStockChange(searchParams.get("inStock") === "true")
+    onSortChange((searchParams.get("sort") as SortOrder) || "default")
+  }, [searchParams, onSearchChange, onCategoryChange, onBrandChange, onInStockChange, onSortChange])
+
+  return null
+}
+
 export default function AdsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [currentPage, setCurrentPage] = useState(1)
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "")
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || ALL_CATEGORIES)
-  const [selectedBrand, setSelectedBrand] = useState(searchParams.get("brand") || ALL_BRANDS)
-  const [onlyInStock, setOnlyInStock] = useState(searchParams.get("inStock") === "true")
-  const [priceSort, setPriceSort] = useState<SortOrder>(
-    (searchParams.get("sort") as SortOrder) || "default"
-  )
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES)
+  const [selectedBrand, setSelectedBrand] = useState(ALL_BRANDS)
+  const [onlyInStock, setOnlyInStock] = useState(false)
+  const [priceSort, setPriceSort] = useState<SortOrder>("default")
+
+  // Add back URL updating effect
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (searchQuery) {
+      params.set("q", searchQuery)
+    }
+    if (selectedCategory && selectedCategory !== ALL_CATEGORIES) {
+      params.set("category", selectedCategory)
+    }
+    if (selectedBrand && selectedBrand !== ALL_BRANDS) {
+      params.set("brand", selectedBrand)
+    }
+    if (onlyInStock) {
+      params.set("inStock", "true")
+    }
+    if (priceSort !== "default") {
+      params.set("sort", priceSort)
+    }
+    router.replace(`/ads?${params.toString()}`)
+  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort, router])
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort])
 
   const togglePriceSort = () => {
     setPriceSort(current => {
@@ -103,41 +153,6 @@ export default function AdsPage() {
   )
 
   const totalPages = Math.ceil((data?.total || 0) / ITEMS_PER_PAGE)
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams)
-    if (searchQuery) {
-      params.set("q", searchQuery)
-    } else {
-      params.delete("q")
-    }
-    if (selectedCategory && selectedCategory !== ALL_CATEGORIES) {
-      params.set("category", selectedCategory)
-    } else {
-      params.delete("category")
-    }
-    if (selectedBrand && selectedBrand !== ALL_BRANDS) {
-      params.set("brand", selectedBrand)
-    } else {
-      params.delete("brand")
-    }
-    if (onlyInStock) {
-      params.set("inStock", "true")
-    } else {
-      params.delete("inStock")
-    }
-    if (priceSort !== "default") {
-      params.set("sort", priceSort)
-    } else {
-      params.delete("sort")
-    }
-    router.replace(`/ads?${params.toString()}`)
-  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort, router, searchParams])
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort])
 
   if (!isAuthenticated) {
     redirect("/login")

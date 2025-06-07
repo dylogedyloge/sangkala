@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef, useCallback, Suspense } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { redirect, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/shadcn/button"
@@ -16,7 +16,7 @@ import {
 } from "@/components/shadcn/select"
 import { Checkbox } from "@/components/shadcn/checkbox"
 import { Label } from "@/components/shadcn/label"
-import { ArrowUpDown, Bell, ChevronDown, Menu, Plus, Heart, UserCircle2 } from "lucide-react"
+import { ArrowUpDown, Bell, ChevronDown, Menu, Plus, Heart, UserCircle2, LayoutList, LayoutGrid, Search, X } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Circle } from "lucide-react"
@@ -80,60 +80,27 @@ const getStockBadgeColor = (status: string) => {
   }
 };
 
-interface SearchParamsState {
-  q: string
-  category: string
-  brand: string
-  inStock: boolean
-  sort: SortOrder
-}
-
-// Search params wrapper component
-function SearchParamsWrapper({
-  onInitialize
-}: {
-  onInitialize: (params: SearchParamsState) => void
-}) {
-  const searchParams = useSearchParams()
-  
-  useEffect(() => {
-    onInitialize({
-      q: searchParams.get("q") || "",
-      category: searchParams.get("category") || ALL_CATEGORIES,
-      brand: searchParams.get("brand") || ALL_BRANDS,
-      inStock: searchParams.get("inStock") === "true",
-      sort: (searchParams.get("sort") as SortOrder) || "default"
-    })
-  }, [searchParams, onInitialize])
-
-  return null
-}
-
 export default function AdsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentPage, setCurrentPage] = useState(1)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES)
-  const [selectedBrand, setSelectedBrand] = useState(ALL_BRANDS)
-  const [onlyInStock, setOnlyInStock] = useState(false)
-  const [priceSort, setPriceSort] = useState<SortOrder>("default")
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "")
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || ALL_CATEGORIES)
+  const [selectedBrand, setSelectedBrand] = useState(searchParams.get("brand") || ALL_BRANDS)
+  const [onlyInStock, setOnlyInStock] = useState(searchParams.get("inStock") === "true")
+  const [priceSort, setPriceSort] = useState<SortOrder>(
+    (searchParams.get("sort") as SortOrder) || "default"
+  )
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [isMobile, setIsMobile] = useState(false)
   const loadingRef = useRef(null)
 
-  // Initialize state from URL parameters
-  const handleSearchParamsInit = useCallback(({
-    q,
-    category,
-    brand,
-    inStock,
-    sort
-  }: SearchParamsState) => {
-    setSearchQuery(q)
-    setSelectedCategory(category)
-    setSelectedBrand(brand)
-    setOnlyInStock(inStock)
-    setPriceSort(sort)
-  }, [])
+  const togglePriceSort = () => {
+    setPriceSort(current => {
+      if (current === "default" || current === "highest") return "lowest"
+      return "highest"
+    })
+  }
 
   const { isAuthenticated, logout } = useAuthStore()
   const { data: brands = [], isLoading: isBrandsLoading } = useBrands()
@@ -150,26 +117,35 @@ export default function AdsPage() {
 
   const totalPages = Math.ceil((data?.total || 0) / ITEMS_PER_PAGE)
 
-  // URL updating effect
   useEffect(() => {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams(searchParams)
     if (searchQuery) {
       params.set("q", searchQuery)
+    } else {
+      params.delete("q")
     }
     if (selectedCategory && selectedCategory !== ALL_CATEGORIES) {
       params.set("category", selectedCategory)
+    } else {
+      params.delete("category")
     }
     if (selectedBrand && selectedBrand !== ALL_BRANDS) {
       params.set("brand", selectedBrand)
+    } else {
+      params.delete("brand")
     }
     if (onlyInStock) {
       params.set("inStock", "true")
+    } else {
+      params.delete("inStock")
     }
     if (priceSort !== "default") {
       params.set("sort", priceSort)
+    } else {
+      params.delete("sort")
     }
     router.replace(`/ads?${params.toString()}`)
-  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort, router])
+  }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort, router, searchParams])
 
   // Check if device is mobile
   useEffect(() => {
@@ -314,16 +290,9 @@ export default function AdsPage() {
                     placeholder="Search Anything.."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 rounded-full"
+                    className="w-full pl-10 pr-3 py-2 bg-muted/50 rounded-full"
                   />
-                  <svg className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <Button variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </Button>
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 </div>
               </div>
 
@@ -397,16 +366,9 @@ export default function AdsPage() {
               placeholder="Search Anything.."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-9 py-2 rounded-full bg-muted/50 border-0 text-[13px]"
+              className="w-full pl-9 pr-3 py-2 rounded-full bg-muted/50 border-0 text-[13px]"
             />
-            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <Button variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7">
-              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-              </svg>
-            </Button>
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
         </div>
 
@@ -483,10 +445,7 @@ export default function AdsPage() {
             </Select>
             <Button
               variant="outline"
-              onClick={() => setPriceSort(current => {
-                if (current === "default" || current === "highest") return "lowest"
-                return "highest"
-              })}
+              onClick={togglePriceSort}
               className="flex items-center gap-2"
             >
               <ArrowUpDown className="h-4 w-4" />
@@ -504,10 +463,37 @@ export default function AdsPage() {
               />
               <Label htmlFor="inStock">Only In Stock</Label>
             </div>
+            <div className="ml-auto flex items-center  border rounded-md">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "px-3 rounded-none",
+                  viewMode === "list" && "bg-muted"
+                )}
+                onClick={() => setViewMode("list")}
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "px-3 rounded-none",
+                  viewMode === "grid" && "bg-muted"
+                )}
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Product Cards */}
-          <div className="space-y-4 px-4 md:px-0">
+          <div className={cn(
+            "space-y-4 px-4 md:px-0",
+            viewMode === "grid" && "md:space-y-0 md:grid md:grid-cols-3 md:gap-4"
+          )}>
             {isLoading && currentPage === 1 ? (
               Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
                 <ProductCardSkeleton key={index} />
@@ -519,11 +505,17 @@ export default function AdsPage() {
                   <Link 
                     key={ad.id} 
                     href={`/ads/${ad.id}`}
-                    className="block transition-transform  active:scale-[0.98]"
+                    className="block transition-transform active:scale-[0.98]"
                   >
                     <Card className="overflow-hidden hover:border-primary/50">
-                      <div className="flex flex-col md:flex-row md:gap-8">
-                        <div className="relative w-full md:w-[300px] h-[180px] md:h-[240px] flex-shrink-0">
+                      <div className={cn(
+                        "flex flex-col",
+                        viewMode === "list" && "md:flex-row md:gap-8"
+                      )}>
+                        <div className={cn(
+                          "relative w-full h-[180px] flex-shrink-0",
+                          viewMode === "list" ? "md:w-[300px] md:h-[240px]" : "md:h-[200px]"
+                        )}>
                           <div className="absolute top-3 left-3 z-10">
                             <span className={cn(
                               "text-[13px] md:text-xs font-medium px-2.5 py-1 md:px-3 md:py-1.5 rounded-md",
@@ -539,10 +531,17 @@ export default function AdsPage() {
                             className="object-cover"
                           />
                         </div>
-                        <div className="flex-1 p-4 md:p-6 md:pr-8 space-y-4 md:space-y-5">
+                        <div className={cn(
+                          "flex-1 p-4",
+                          viewMode === "list" ? "md:p-6 md:pr-8" : "md:p-4",
+                          "space-y-4 md:space-y-5"
+                        )}>
                           <div className="flex justify-between items-start gap-4">
                             <div>
-                              <h2 className="text-lg md:text-xl font-semibold tracking-tight mb-1.5 md:mb-2">{ad.title}</h2>
+                              <h2 className={cn(
+                                "text-lg font-semibold tracking-tight mb-1.5",
+                                viewMode === "list" ? "md:text-xl md:mb-2" : "md:text-lg md:mb-1.5"
+                              )}>{ad.title}</h2>
                               <div className="flex items-center flex-wrap gap-1.5 md:gap-2">
                                 <p className="text-[13px] md:text-sm text-muted-foreground">Account User</p>
                                 <span className="text-[13px] md:text-sm bg-primary/10 text-primary px-2.5 py-0.5 md:px-3 md:py-1 rounded-full font-medium">
@@ -559,7 +558,10 @@ export default function AdsPage() {
                               <div className="flex items-baseline gap-1 md:gap-1.5">
                                 <div className="flex items-baseline gap-0.5 md:gap-1">
                                   <span className="text-xs md:text-sm font-medium text-muted-foreground">USD</span>
-                                  <span className="text-sm md:text-xl font-bold tracking-tight">{ad.price.toLocaleString()}</span>
+                                  <span className={cn(
+                                    "text-sm font-bold tracking-tight",
+                                    viewMode === "list" ? "md:text-xl" : "md:text-lg"
+                                  )}>{ad.price.toLocaleString()}</span>
                                 </div>
                                 <span className="text-[11px] md:text-sm text-muted-foreground font-medium tracking-tight">/per-unit</span>
                               </div>
@@ -569,50 +571,57 @@ export default function AdsPage() {
                             </div>
                           </div>
 
-                          <p className="text-[13px] md:text-sm text-muted-foreground leading-relaxed line-clamp-2">{ad.description}</p>
+                          <p className={cn(
+                            "text-[13px] md:text-sm text-muted-foreground leading-relaxed line-clamp-2",
+                            viewMode === "grid" && "md:line-clamp-3"
+                          )}>{ad.description}</p>
 
-                          <div className="flex items-center gap-4 md:gap-6 text-[13px] md:text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1.5 md:gap-2">
-                              <span className="font-medium">1 Hours Ago</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 md:gap-2">
-                              <span className="font-medium">20 KG</span>
-                            </div>
-                            <div className="flex items-center gap-1 md:gap-1.5">
-                              {COLORS.map((color, i) => (
-                                <Circle 
-                                  key={i}
-                                  className={cn(
-                                    "h-3.5 w-3.5 md:h-4 md:w-4",
-                                    i === 0 && "fill-current"
-                                  )}
-                                  style={{ color }}
-                                />
-                              ))}
-                            </div>
-                          </div>
+                          {viewMode === "list" && (
+                            <>
+                              <div className="flex items-center gap-4 md:gap-6 text-[13px] md:text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1.5 md:gap-2">
+                                  <span className="font-medium">1 Hours Ago</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 md:gap-2">
+                                  <span className="font-medium">20 KG</span>
+                                </div>
+                                <div className="flex items-center gap-1 md:gap-1.5">
+                                  {COLORS.map((color, i) => (
+                                    <Circle 
+                                      key={i}
+                                      className={cn(
+                                        "h-3.5 w-3.5 md:h-4 md:w-4",
+                                        i === 0 && "fill-current"
+                                      )}
+                                      style={{ color }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
 
-                          <div className="pt-0.5 md:pt-1">
-                            <h3 className="font-medium text-[15px] md:text-base mb-2.5 md:mb-3">Overview:</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-3 md:gap-x-6 md:gap-y-4 text-[13px] md:text-sm">
-                              <div>
-                                <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
-                                <p className="font-medium">Black</p>
+                              <div className="pt-0.5 md:pt-1">
+                                <h3 className="font-medium text-[15px] md:text-base mb-2.5 md:mb-3">Overview:</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-3 md:gap-x-6 md:gap-y-4 text-[13px] md:text-sm">
+                                  <div>
+                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
+                                    <p className="font-medium">Black</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
+                                    <p className="font-medium">China</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
+                                    <p className="font-medium">Black</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
+                                    <p className="font-medium">China</p>
+                                  </div>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
-                                <p className="font-medium">China</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
-                                <p className="font-medium">Black</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
-                                <p className="font-medium">China</p>
-                              </div>
-                            </div>
-                          </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </Card>

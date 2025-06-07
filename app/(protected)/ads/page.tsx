@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, Suspense } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { redirect, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/shadcn/button"
@@ -80,9 +80,10 @@ const getStockBadgeColor = (status: string) => {
   }
 };
 
-export default function AdsPage() {
-  const router = useRouter()
+// Search component that uses useSearchParams
+function SearchParamsComponent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "")
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || ALL_CATEGORIES)
@@ -95,14 +96,6 @@ export default function AdsPage() {
   const [isMobile, setIsMobile] = useState(false)
   const loadingRef = useRef(null)
 
-  const togglePriceSort = () => {
-    setPriceSort(current => {
-      if (current === "default" || current === "highest") return "lowest"
-      return "highest"
-    })
-  }
-
-  const { isAuthenticated, logout } = useAuthStore()
   const { data: brands = [], isLoading: isBrandsLoading } = useBrands()
   const { data: categories = [], isLoading: isCategoriesLoading } = useCategories()
   const { data, isLoading, error } = useAds(
@@ -116,6 +109,13 @@ export default function AdsPage() {
   )
 
   const totalPages = Math.ceil((data?.total || 0) / ITEMS_PER_PAGE)
+
+  const togglePriceSort = () => {
+    setPriceSort(current => {
+      if (current === "default" || current === "highest") return "lowest"
+      return "highest"
+    })
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -203,12 +203,496 @@ export default function AdsPage() {
     setAccumulatedProducts([])
   }, [searchQuery, selectedCategory, selectedBrand, onlyInStock, priceSort])
 
+  return (
+    <>
+      {/* Desktop Search Bar */}
+      <div className="hidden md:block border-b bg-background">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center h-16 gap-8">
+            {/* Logo */}
+            <div className="font-semibold text-lg shrink-0">Hajjar Ads</div>
+
+            {/* Search Bar */}
+            <div className="flex-1 max-w-2xl">
+              <div className="relative">
+                <Input
+                  type="search"
+                  placeholder="Search Anything.."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 bg-muted/50 rounded-full"
+                />
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 shrink-0">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium shrink-0">
+                Create Advertisement
+              </Button>
+
+              <Select defaultValue="metric">
+                <SelectTrigger className="w-[100px] border-0 text-sm font-medium bg-transparent">
+                  <SelectValue placeholder="Metric" />
+                </SelectTrigger>
+                <SelectContent position="item-aligned" align="center" sideOffset={8}>
+                  <SelectItem value="metric">Metric</SelectItem>
+                  <SelectItem value="imperial">Imperial</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select defaultValue="en">
+                <SelectTrigger className="w-[80px] border-0 text-sm font-medium bg-transparent">
+                  <SelectValue placeholder="EN" />
+                </SelectTrigger>
+                <SelectContent position="item-aligned" align="center" sideOffset={8}>
+                  <SelectItem value="en">EN</SelectItem>
+                  <SelectItem value="ar">AR</SelectItem>
+                  <SelectItem value="fa">FA</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <ThemeToggle />
+
+              <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
+              </Button>
+
+              <div className="flex items-center gap-2 pl-2 shrink-0">
+                <div className="w-8 h-8 rounded-full bg-muted overflow-hidden relative shrink-0">
+                  <Image
+                    src="/avatar-placeholder.jpg"
+                    alt="Profile"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="flex items-center gap-1 cursor-pointer">
+                  <div>
+                    <p className="text-sm font-medium">Ali Motiei</p>
+                    <p className="text-xs text-muted-foreground">ali@example.com</p>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Search */}
+      <div className="md:hidden px-4 py-3">
+        <div className="relative">
+          <Input
+            type="search"
+            placeholder="Search Anything.."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-full bg-muted/50 border-0 text-[13px]"
+          />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        </div>
+      </div>
+
+      {/* Mobile Filters */}
+      <div className="md:hidden px-4 space-y-3 pb-3">
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-full bg-background text-[13px] border-input">
+            <SelectValue placeholder="Select category" />
+          </SelectTrigger>
+          <SelectContent className="max-h-[300px] overflow-y-auto">
+            <SelectItem value={ALL_CATEGORIES}>All Categories</SelectItem>
+            {!isCategoriesLoading && categories.map((category:string) => (
+              <SelectItem key={category} value={category}>
+                {formatCategoryName(category)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+          <SelectTrigger className="w-full bg-background text-[13px] border-input">
+            <SelectValue placeholder="Select brand" />
+          </SelectTrigger>
+          <SelectContent className="max-h-[300px] overflow-y-auto">
+            <SelectItem value={ALL_BRANDS}>All Brands</SelectItem>
+            {!isBrandsLoading && brands.map((brand) => (
+              <SelectItem key={brand} value={brand}>
+                {brand}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-2 px-1">
+          <Checkbox 
+            id="inStockMobile" 
+            checked={onlyInStock}
+            onCheckedChange={(checked: boolean | "indeterminate") => setOnlyInStock(checked === true)}
+            className="h-4 w-4 border-input"
+          />
+          <Label htmlFor="inStockMobile" className="text-[13px] text-foreground">Only In Stock</Label>
+        </div>
+      </div>
+      
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 relative w-full">
+        {/* Desktop Filters */}
+        <div className="hidden md:flex gap-4 my-6 flex-wrap items-center">
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[200px] overflow-y-auto">
+              <SelectItem value={ALL_CATEGORIES}>All Categories</SelectItem>
+              {!isCategoriesLoading && categories.map((category:string) => (
+                <SelectItem key={category} value={category}>
+                  {formatCategoryName(category)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select brand" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[200px] overflow-y-auto">
+              <SelectItem value={ALL_BRANDS}>All Brands</SelectItem>
+              {!isBrandsLoading && brands.map((brand) => (
+                <SelectItem key={brand} value={brand}>
+                  {brand}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={togglePriceSort}
+            className="flex items-center gap-2"
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            <span>
+              {priceSort === "lowest" ? "Price: Ascending" : 
+               priceSort === "highest" ? "Price: Descending" : 
+               "Sort by Price"}
+            </span>
+          </Button>
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="inStock" 
+              checked={onlyInStock}
+              onCheckedChange={(checked: boolean | "indeterminate") => setOnlyInStock(checked === true)}
+            />
+            <Label htmlFor="inStock">Only In Stock</Label>
+          </div>
+          <div className="ml-auto flex items-center  border rounded-md">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "px-3 rounded-none",
+                viewMode === "list" && "bg-muted"
+              )}
+              onClick={() => setViewMode("list")}
+            >
+              <LayoutList className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "px-3 rounded-none",
+                viewMode === "grid" && "bg-muted"
+              )}
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Product Cards */}
+        <div className={cn(
+          "space-y-4 px-4 md:px-0",
+          viewMode === "grid" && "md:space-y-0 md:grid md:grid-cols-3 md:gap-4"
+        )}>
+          {isLoading && currentPage === 1 ? (
+            Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))
+          ) : (
+            <>
+              {/* Show accumulated products for mobile, regular data.products for desktop */}
+              {(isMobile ? accumulatedProducts : data?.products)?.map((ad: Product) => (
+                <Link 
+                  key={ad.id} 
+                  href={`/ads/${ad.id}`}
+                  className="block transition-transform active:scale-[0.98]"
+                >
+                  <Card className="overflow-hidden hover:border-primary/50">
+                    <div className={cn(
+                      "flex flex-col",
+                      viewMode === "list" && "md:flex-row md:gap-8"
+                    )}>
+                      <div className={cn(
+                        "relative w-full h-[180px] flex-shrink-0",
+                        viewMode === "list" ? "md:w-[300px] md:h-[240px]" : "md:h-[200px]"
+                      )}>
+                        <div className="absolute top-3 left-3 z-10">
+                          <span className={cn(
+                            "text-[13px] md:text-xs font-medium px-2.5 py-1 md:px-3 md:py-1.5 rounded-md",
+                            getStockBadgeColor(ad.availabilityStatus)
+                          )}>
+                            {ad.availabilityStatus}
+                          </span>
+                        </div>
+                        <Image
+                          src={ad.thumbnail}
+                          alt={ad.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className={cn(
+                        "flex-1 p-4",
+                        viewMode === "list" ? "md:p-6 md:pr-8" : "md:p-4",
+                        "space-y-4 md:space-y-5"
+                      )}>
+                        <div className="flex justify-between items-start gap-4">
+                          <div>
+                            <h2 className={cn(
+                              "text-lg font-semibold tracking-tight mb-1.5",
+                              viewMode === "list" ? "md:text-xl md:mb-2" : "md:text-lg md:mb-1.5"
+                            )}>{ad.title}</h2>
+                            <div className="flex items-center flex-wrap gap-1.5 md:gap-2">
+                              <p className="text-[13px] md:text-sm text-muted-foreground">Account User</p>
+                              <span className="text-[13px] md:text-sm bg-primary/10 text-primary px-2.5 py-0.5 md:px-3 md:py-1 rounded-full font-medium">
+                                {formatCategoryName(ad.category)}
+                              </span>
+                              {ad.brand && (
+                                <span className="text-[13px] md:text-sm bg-primary text-secondary px-2.5 py-0.5 md:px-3 md:py-1 rounded-full font-medium">
+                                  {ad.brand}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-baseline gap-1 md:gap-1.5">
+                              <div className="flex items-baseline gap-0.5 md:gap-1">
+                                <span className="text-xs md:text-sm font-medium text-muted-foreground">USD</span>
+                                <span className={cn(
+                                  "text-sm font-bold tracking-tight",
+                                  viewMode === "list" ? "md:text-xl" : "md:text-lg"
+                                )}>{ad.price.toLocaleString()}</span>
+                              </div>
+                              <span className="text-[11px] md:text-sm text-muted-foreground font-medium tracking-tight">/per-unit</span>
+                            </div>
+                            {ad.discountPercentage > 0 && (
+                              <p className="text-[11px] md:text-sm font-medium text-green-600 mt-0.5 md:mt-1">-{ad.discountPercentage}%</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className={cn(
+                          "text-[13px] md:text-sm text-muted-foreground leading-relaxed line-clamp-2",
+                          viewMode === "grid" && "md:line-clamp-3"
+                        )}>{ad.description}</p>
+
+                        {viewMode === "list" && (
+                          <>
+                            <div className="flex items-center gap-4 md:gap-6 text-[13px] md:text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1.5 md:gap-2">
+                                <span className="font-medium">1 Hours Ago</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 md:gap-2">
+                                <span className="font-medium">20 KG</span>
+                              </div>
+                              <div className="flex items-center gap-1 md:gap-1.5">
+                                {COLORS.map((color, i) => (
+                                  <Circle 
+                                    key={i}
+                                    className={cn(
+                                      "h-3.5 w-3.5 md:h-4 md:w-4",
+                                      i === 0 && "fill-current"
+                                    )}
+                                    style={{ color }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="pt-0.5 md:pt-1">
+                              <h3 className="font-medium text-[15px] md:text-base mb-2.5 md:mb-3">Overview:</h3>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-3 md:gap-x-6 md:gap-y-4 text-[13px] md:text-sm">
+                                <div>
+                                  <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
+                                  <p className="font-medium">Black</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
+                                  <p className="font-medium">China</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
+                                  <p className="font-medium">Black</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
+                                  <p className="font-medium">China</p>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+
+              {/* Loading indicator for mobile lazy loading */}
+              {isMobile && currentPage < totalPages && (
+                <div ref={loadingRef} className="py-4 flex justify-center">
+                  <ProductCardSkeleton />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        
+        {!isMobile && !isLoading && totalPages > 1 && (
+          <div className="flex justify-center mt-8">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setCurrentPage(p => Math.max(1, p - 1))
+                    }}
+                    aria-disabled={currentPage === 1}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+
+                {/* First Page */}
+                <PaginationItem>
+                  <PaginationLink
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setCurrentPage(1)
+                    }}
+                    isActive={currentPage === 1}
+                  >
+                    1
+                  </PaginationLink>
+                </PaginationItem>
+
+                {/* Show ellipsis if there are hidden pages before current page */}
+                {currentPage > 3 && (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                )}
+
+                {/* Page before current */}
+                {currentPage > 2 && currentPage !== totalPages && (
+                  <PaginationItem>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(currentPage - 1)
+                      }}
+                    >
+                      {currentPage - 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                {/* Current page (if not first or last) */}
+                {currentPage !== 1 && currentPage !== totalPages && (
+                  <PaginationItem>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(currentPage)
+                      }}
+                      isActive
+                    >
+                      {currentPage}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                {/* Page after current */}
+                {currentPage < totalPages - 1 && currentPage !== 1 && (
+                  <PaginationItem>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(currentPage + 1)
+                      }}
+                    >
+                      {currentPage + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                {/* Show ellipsis if there are hidden pages after current page */}
+                {currentPage < totalPages - 2 && (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                )}
+
+                {/* Last Page */}
+                {totalPages > 1 && (
+                  <PaginationItem>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(totalPages)
+                      }}
+                      isActive={currentPage === totalPages}
+                    >
+                      {totalPages}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setCurrentPage(p => Math.min(totalPages, p + 1))
+                    }}
+                    aria-disabled={currentPage === totalPages}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+export default function AdsPage() {
+  const { isAuthenticated } = useAuthStore()
+
   if (!isAuthenticated) {
     redirect("/login")
-  }
-
-  if (error) {
-    return <div className="min-h-screen p-8">Error loading ads</div>
   }
 
   return (
@@ -264,503 +748,14 @@ export default function AdsPage() {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
           </Button>
         </div>
-
-        {/* Desktop Header */}
-        <div className="hidden md:block border-b bg-background">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center h-16 gap-8">
-              {/* Logo */}
-              <div className="font-semibold text-lg shrink-0">Hajjar Ads</div>
-
-              {/* Navigation */}
-              <nav className="flex items-center gap-2 shrink-0">
-                <Button variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-                  Home
-                </Button>
-                <Button variant="ghost" className="text-muted-foreground">
-                  Bookmark
-                </Button>
-              </nav>
-
-              {/* Search Bar */}
-              <div className="flex-1 max-w-2xl">
-                <div className="relative">
-                  <Input
-                    type="search"
-                    placeholder="Search Anything.."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 bg-muted/50 rounded-full"
-                  />
-                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3 shrink-0">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium shrink-0">
-                  Create Advertisement
-                </Button>
-
-                <Select defaultValue="metric">
-                  <SelectTrigger className="w-[100px] border-0 text-sm font-medium bg-transparent">
-                    <SelectValue placeholder="Metric" />
-                  </SelectTrigger>
-                  <SelectContent position="item-aligned" align="center" sideOffset={8}>
-                    <SelectItem value="metric">Metric</SelectItem>
-                    <SelectItem value="imperial">Imperial</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select defaultValue="en">
-                  <SelectTrigger className="w-[80px] border-0 text-sm font-medium bg-transparent">
-                    <SelectValue placeholder="EN" />
-                  </SelectTrigger>
-                  <SelectContent position="item-aligned" align="center" sideOffset={8}>
-                    <SelectItem value="en">EN</SelectItem>
-                    <SelectItem value="ar">AR</SelectItem>
-                    <SelectItem value="fa">FA</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <ThemeToggle />
-
-                <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
-                </Button>
-
-                <div className="flex items-center gap-2 pl-2 shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-muted overflow-hidden relative shrink-0">
-                    <Image
-                      src="/avatar-placeholder.jpg"
-                      alt="Profile"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1 cursor-pointer">
-                    <div>
-                      <p className="text-sm font-medium">Ali Motiei</p>
-                      <p className="text-xs text-muted-foreground">ali@example.com</p>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Header Spacer */}
       <div className="h-[56px] md:h-[64px]"></div>
 
-      {/* Main Content Container */}
-      <div className="w-full overflow-x-hidden">
-        {/* Mobile Search */}
-        <div className="md:hidden px-4 py-3">
-          <div className="relative">
-            <Input
-              type="search"
-              placeholder="Search Anything.."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-full bg-muted/50 border-0 text-[13px]"
-            />
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          </div>
-        </div>
-
-        {/* Mobile Filters */}
-        <div className="md:hidden px-4 space-y-3 pb-3">
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full bg-background text-[13px] border-input">
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] overflow-y-auto">
-              <SelectItem value={ALL_CATEGORIES}>All Categories</SelectItem>
-              {!isCategoriesLoading && categories.map((category:string) => (
-                <SelectItem key={category} value={category}>
-                  {formatCategoryName(category)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-            <SelectTrigger className="w-full bg-background text-[13px] border-input">
-              <SelectValue placeholder="Select brand" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] overflow-y-auto">
-              <SelectItem value={ALL_BRANDS}>All Brands</SelectItem>
-              {!isBrandsLoading && brands.map((brand) => (
-                <SelectItem key={brand} value={brand}>
-                  {brand}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="flex items-center gap-2 px-1">
-            <Checkbox 
-              id="inStockMobile" 
-              checked={onlyInStock}
-              onCheckedChange={(checked: boolean | "indeterminate") => setOnlyInStock(checked === true)}
-              className="h-4 w-4 border-input"
-            />
-            <Label htmlFor="inStockMobile" className="text-[13px] text-foreground">Only In Stock</Label>
-          </div>
-        </div>
-        
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 relative w-full">
-          {/* Desktop Filters */}
-          <div className="hidden md:flex gap-4 my-6 flex-wrap items-center">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px] overflow-y-auto">
-                <SelectItem value={ALL_CATEGORIES}>All Categories</SelectItem>
-                {!isCategoriesLoading && categories.map((category:string) => (
-                  <SelectItem key={category} value={category}>
-                    {formatCategoryName(category)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select brand" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px] overflow-y-auto">
-                <SelectItem value={ALL_BRANDS}>All Brands</SelectItem>
-                {!isBrandsLoading && brands.map((brand) => (
-                  <SelectItem key={brand} value={brand}>
-                    {brand}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={togglePriceSort}
-              className="flex items-center gap-2"
-            >
-              <ArrowUpDown className="h-4 w-4" />
-              <span>
-                {priceSort === "lowest" ? "Price: Ascending" : 
-                 priceSort === "highest" ? "Price: Descending" : 
-                 "Sort by Price"}
-              </span>
-            </Button>
-            <div className="flex items-center gap-2">
-              <Checkbox 
-                id="inStock" 
-                checked={onlyInStock}
-                onCheckedChange={(checked: boolean | "indeterminate") => setOnlyInStock(checked === true)}
-              />
-              <Label htmlFor="inStock">Only In Stock</Label>
-            </div>
-            <div className="ml-auto flex items-center  border rounded-md">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "px-3 rounded-none",
-                  viewMode === "list" && "bg-muted"
-                )}
-                onClick={() => setViewMode("list")}
-              >
-                <LayoutList className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "px-3 rounded-none",
-                  viewMode === "grid" && "bg-muted"
-                )}
-                onClick={() => setViewMode("grid")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Product Cards */}
-          <div className={cn(
-            "space-y-4 px-4 md:px-0",
-            viewMode === "grid" && "md:space-y-0 md:grid md:grid-cols-3 md:gap-4"
-          )}>
-            {isLoading && currentPage === 1 ? (
-              Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
-                <ProductCardSkeleton key={index} />
-              ))
-            ) : (
-              <>
-                {/* Show accumulated products for mobile, regular data.products for desktop */}
-                {(isMobile ? accumulatedProducts : data?.products)?.map((ad: Product) => (
-                  <Link 
-                    key={ad.id} 
-                    href={`/ads/${ad.id}`}
-                    className="block transition-transform active:scale-[0.98]"
-                  >
-                    <Card className="overflow-hidden hover:border-primary/50">
-                      <div className={cn(
-                        "flex flex-col",
-                        viewMode === "list" && "md:flex-row md:gap-8"
-                      )}>
-                        <div className={cn(
-                          "relative w-full h-[180px] flex-shrink-0",
-                          viewMode === "list" ? "md:w-[300px] md:h-[240px]" : "md:h-[200px]"
-                        )}>
-                          <div className="absolute top-3 left-3 z-10">
-                            <span className={cn(
-                              "text-[13px] md:text-xs font-medium px-2.5 py-1 md:px-3 md:py-1.5 rounded-md",
-                              getStockBadgeColor(ad.availabilityStatus)
-                            )}>
-                              {ad.availabilityStatus}
-                            </span>
-                          </div>
-                          <Image
-                            src={ad.thumbnail}
-                            alt={ad.title}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                        <div className={cn(
-                          "flex-1 p-4",
-                          viewMode === "list" ? "md:p-6 md:pr-8" : "md:p-4",
-                          "space-y-4 md:space-y-5"
-                        )}>
-                          <div className="flex justify-between items-start gap-4">
-                            <div>
-                              <h2 className={cn(
-                                "text-lg font-semibold tracking-tight mb-1.5",
-                                viewMode === "list" ? "md:text-xl md:mb-2" : "md:text-lg md:mb-1.5"
-                              )}>{ad.title}</h2>
-                              <div className="flex items-center flex-wrap gap-1.5 md:gap-2">
-                                <p className="text-[13px] md:text-sm text-muted-foreground">Account User</p>
-                                <span className="text-[13px] md:text-sm bg-primary/10 text-primary px-2.5 py-0.5 md:px-3 md:py-1 rounded-full font-medium">
-                                  {formatCategoryName(ad.category)}
-                                </span>
-                                {ad.brand && (
-                                  <span className="text-[13px] md:text-sm bg-primary text-secondary px-2.5 py-0.5 md:px-3 md:py-1 rounded-full font-medium">
-                                    {ad.brand}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-baseline gap-1 md:gap-1.5">
-                                <div className="flex items-baseline gap-0.5 md:gap-1">
-                                  <span className="text-xs md:text-sm font-medium text-muted-foreground">USD</span>
-                                  <span className={cn(
-                                    "text-sm font-bold tracking-tight",
-                                    viewMode === "list" ? "md:text-xl" : "md:text-lg"
-                                  )}>{ad.price.toLocaleString()}</span>
-                                </div>
-                                <span className="text-[11px] md:text-sm text-muted-foreground font-medium tracking-tight">/per-unit</span>
-                              </div>
-                              {ad.discountPercentage > 0 && (
-                                <p className="text-[11px] md:text-sm font-medium text-green-600 mt-0.5 md:mt-1">-{ad.discountPercentage}%</p>
-                              )}
-                            </div>
-                          </div>
-
-                          <p className={cn(
-                            "text-[13px] md:text-sm text-muted-foreground leading-relaxed line-clamp-2",
-                            viewMode === "grid" && "md:line-clamp-3"
-                          )}>{ad.description}</p>
-
-                          {viewMode === "list" && (
-                            <>
-                              <div className="flex items-center gap-4 md:gap-6 text-[13px] md:text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1.5 md:gap-2">
-                                  <span className="font-medium">1 Hours Ago</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 md:gap-2">
-                                  <span className="font-medium">20 KG</span>
-                                </div>
-                                <div className="flex items-center gap-1 md:gap-1.5">
-                                  {COLORS.map((color, i) => (
-                                    <Circle 
-                                      key={i}
-                                      className={cn(
-                                        "h-3.5 w-3.5 md:h-4 md:w-4",
-                                        i === 0 && "fill-current"
-                                      )}
-                                      style={{ color }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="pt-0.5 md:pt-1">
-                                <h3 className="font-medium text-[15px] md:text-base mb-2.5 md:mb-3">Overview:</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-3 md:gap-x-6 md:gap-y-4 text-[13px] md:text-sm">
-                                  <div>
-                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
-                                    <p className="font-medium">Black</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
-                                    <p className="font-medium">China</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Form</p>
-                                    <p className="font-medium">Black</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground mb-0.5 md:mb-1">Origin</p>
-                                    <p className="font-medium">China</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
-                ))}
-
-                {/* Loading indicator for mobile lazy loading */}
-                {isMobile && currentPage < totalPages && (
-                  <div ref={loadingRef} className="py-4 flex justify-center">
-                    <ProductCardSkeleton />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          
-          {!isMobile && !isLoading && totalPages > 1 && (
-            <div className="flex justify-center mt-8">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setCurrentPage(p => Math.max(1, p - 1))
-                      }}
-                      aria-disabled={currentPage === 1}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-
-                  {/* First Page */}
-                  <PaginationItem>
-                    <PaginationLink
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setCurrentPage(1)
-                      }}
-                      isActive={currentPage === 1}
-                    >
-                      1
-                    </PaginationLink>
-                  </PaginationItem>
-
-                  {/* Show ellipsis if there are hidden pages before current page */}
-                  {currentPage > 3 && (
-                    <PaginationItem>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  )}
-
-                  {/* Page before current */}
-                  {currentPage > 2 && currentPage !== totalPages && (
-                    <PaginationItem>
-                      <PaginationLink
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setCurrentPage(currentPage - 1)
-                        }}
-                      >
-                        {currentPage - 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )}
-
-                  {/* Current page (if not first or last) */}
-                  {currentPage !== 1 && currentPage !== totalPages && (
-                    <PaginationItem>
-                      <PaginationLink
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setCurrentPage(currentPage)
-                        }}
-                        isActive
-                      >
-                        {currentPage}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )}
-
-                  {/* Page after current */}
-                  {currentPage < totalPages - 1 && currentPage !== 1 && (
-                    <PaginationItem>
-                      <PaginationLink
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setCurrentPage(currentPage + 1)
-                        }}
-                      >
-                        {currentPage + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )}
-
-                  {/* Show ellipsis if there are hidden pages after current page */}
-                  {currentPage < totalPages - 2 && (
-                    <PaginationItem>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  )}
-
-                  {/* Last Page */}
-                  {totalPages > 1 && (
-                    <PaginationItem>
-                      <PaginationLink
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setCurrentPage(totalPages)
-                        }}
-                        isActive={currentPage === totalPages}
-                      >
-                        {totalPages}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setCurrentPage(p => Math.min(totalPages, p + 1))
-                      }}
-                      aria-disabled={currentPage === totalPages}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
-        </div>
-      </div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <SearchParamsComponent />
+      </Suspense>
 
       {/* Mobile Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t md:hidden z-50">
